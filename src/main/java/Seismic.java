@@ -288,6 +288,13 @@ class Seismic {
         return traceDataByOneTrace;
     }
 
+    float[][] getAllTraceData() {
+        float[][] out = new float[(int)getTraces()][(int)getSamplesInEveryTrace()];
+        for (int i = 0; i < getTraces(); i++)
+            out[i] = getTraceData(i);
+        return out;
+    }
+
     String[][] getAllTraceHeaders() {
         String[][] new_arr = new String[(int)getTraces()][(int)getSamplesInEveryTrace()];
         for (int i = 0; i < getTraces(); i++)

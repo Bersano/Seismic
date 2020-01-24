@@ -1,5 +1,6 @@
 # Seismic
 
+
 A Java library for work with seismic data. Using this library you can get general information about SGY/SEGY file.
 
 ```java
@@ -41,5 +42,20 @@ Get samples in every trace:
 seismic.getSamplesInEveryTrace();
 ```
 
+Also, you can get multiple data. For getting all traces in one array:
 
-Usually seismic data were saved in IBM 32bit floating point format. Here you can 
+```java
+seismic.getAllTraceData();
+```
+
+For getting all trace headers in one array:
+
+```java
+seismic.getAllTraceHeaders();
+```
+
+For getting all X and Y coordinates (if these localed in 73, 77 bytes):
+
+```java
+seismic.getAllXYForEveryTrace();
+``` 
