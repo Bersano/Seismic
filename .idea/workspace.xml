@@ -22,6 +22,9 @@
   </component>
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="project.structure.last.edited" value="Project" />
+    <property name="project.structure.proportion" value="0.0" />
+    <property name="project.structure.side.proportion" value="0.0" />
     <property name="settings.editor.selected.configurable" value="reference.projectsettings.compiler.javacompiler" />
   </component>
   <component name="TaskManager">
@@ -33,5 +36,11 @@
       <updated>1579862877780</updated>
     </task>
     <servers />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="128" y="23" key="SettingsEditor" timestamp="1579863465615">
+      <screen x="0" y="23" width="1280" height="739" />
+    </state>
+    <state x="128" y="23" key="SettingsEditor/0.23.1280.739@0.23.1280.739" timestamp="1579863465615" />
   </component>
 </project>

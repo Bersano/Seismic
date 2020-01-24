@@ -307,8 +307,6 @@ class Seismic {
 
 
 
-
-
     static class SinglePrecision {
 
         private double getDecimalValueOfMantissa(String input) {
