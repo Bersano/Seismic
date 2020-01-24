@@ -1,6 +1,6 @@
 # Seismic
 
-![seismic](https://files.mastodon.social/accounts/headers/000/881/048/original/294e318d42a6133a.png)
+![seismic](https://skhnv.com/wp-content/uploads/2020/01/Снимок-экрана-2020-01-24-в-15.12.03.png)
 A Java library for work with seismic data. Using this library you can get general information about SGY/SEGY file.
 
 ```java
