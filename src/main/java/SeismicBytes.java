@@ -7,96 +7,111 @@ import java.nio.file.Files;
 import java.util.LinkedList;
 import java.util.List;
 
-class Seismic {
+class SeismicBytes {
 
     private File file_sgy;
 
-    //private byte[] sgyInBytes;
+    private byte[] sgyInBytes;
 
     private byte[] headerByBytes = new byte[3200];
     private String[] binaryHeaderByStringArray = new String[197];
     private String[] traceHeaderByStringArray = new String[93];
 
 
-    Seismic(File file_sgy) {
+    SeismicBytes(File file_sgy) {
         this.file_sgy = file_sgy;
-        //sgyInBytes = new byte[(int)file_sgy.length()];
-        //try { sgyInBytes = Files.readAllBytes(file_sgy.toPath()); }
-        //catch (IOException e) { e.printStackTrace(); }
-    }
-
-
-    long getTraces() { return (file_sgy.length() - 3200 - 400) / (240 + getSamplesInEveryTrace() * 4); }
-
-
-
-    long getSamplesInEveryTrace() {
-        long samplesInEveryTrace = 0;
-
-        RandomAccessFile stream = null;
-
-        try {
-            stream = new RandomAccessFile(file_sgy, "r");
-            stream.seek(3220);
-            samplesInEveryTrace = stream.readShort();
-            //stream.close();
-        }
+        sgyInBytes = new byte[(int)file_sgy.length()];
+        try { sgyInBytes = Files.readAllBytes(file_sgy.toPath()); }
         catch (IOException e) { e.printStackTrace(); }
-        finally { if (stream != null) try { stream.close(); } catch (IOException ignored) {} }
-
-        return samplesInEveryTrace;
     }
 
 
+    long getTraces_byBytes() { return (file_sgy.length() - 3200 - 400) / (240 + getSamplesInEveryTrace_byBytes() * 4); }
 
-    String getTextHeader() {
+    long getSamplesInEveryTrace_byBytes() {
+
+        byte[] k = new byte[2];
+        k[0] = sgyInBytes[3220];
+        k[1] = sgyInBytes[3221];
+
+        return ByteBuffer.wrap(k).getShort();
+    }
+
+
+    String getTextHeader_byBytes(String coding) {
         StringBuilder sb = new StringBuilder();
-        RandomAccessFile stream = null;
-        try {
-            stream = new RandomAccessFile(file_sgy, "r");
 
-            for (int k = 0; k < 3200; k++)
-                headerByBytes[k] = stream.readByte();
+        byte[] txtHeaderInBytes = new byte[3200];
+        System.arraycopy(sgyInBytes, 0, txtHeaderInBytes, 0, 3200);
 
-            // if (UTF-8) == 3200 symbols, else use UTF-8, else use CP-1047 (EBCDIC)
-            char[] headerNewEncoding = new String(headerByBytes, StandardCharsets.UTF_8).toCharArray();
-            if (headerNewEncoding.length != 3200)
-                headerNewEncoding = new String(headerByBytes, "cp1047").toCharArray();
+        // if (UTF-8) == 3200 symbols, else use UTF-8, else use CP-1047 (EBCDIC)
 
-            //40 lines, one line = 80 characters
-            for (int line = 0; line < 40; line++) {
-                for (int chars = line * 80; chars < line * 80 + 80; chars++)
-                    sb.append(headerNewEncoding[chars]);
-                sb.append("\n");
-            }
-            stream.close();
-        } catch (IOException e) { e.printStackTrace(); }
-        finally { if (stream != null) try { stream.close(); } catch (IOException ignored) {} }
+        char[] headerNewEncoding = null;
+
+        switch (coding) {
+            case "UTF8":
+                headerNewEncoding = (new String(txtHeaderInBytes, StandardCharsets.UTF_8)).toCharArray();
+                break;
+
+            case "ASCII":
+                headerNewEncoding = (new String(txtHeaderInBytes, StandardCharsets.US_ASCII)).toCharArray();
+                break;
+
+            case "EBCDIC":
+                try { headerNewEncoding = (new String(txtHeaderInBytes, "cp1047")).toCharArray(); }
+                catch (UnsupportedEncodingException e) { e.printStackTrace(); }
+                break;
+
+            default:
+        }
+
+        List<Character> k = new LinkedList<Character>();
+        for (int elem = 0; elem < headerNewEncoding.length; elem++)
+            k.add(headerNewEncoding[elem]);
+
+        if (k.size() < 3200) {
+            int ne = 3200 - k.size();
+            for (int i = 0; i < ne; i++)
+                k.add(' ');
+        }
+
+
+        //40 lines, one line = 80 characters
+        for (int line = 0; line < 40; line++) {
+            for (int chars = line * 80; chars < line * 80 + 80; chars++)
+                sb.append(k.get(chars));
+            sb.append("\n");
+        }
 
         return sb.toString();
     }
 
 
-    String[] getBinaryHeader() {
-        RandomAccessFile stream = null;
-        try {
-            stream = new RandomAccessFile(file_sgy, "r");
-            stream.seek(3200);
+    String[] getBinaryHeader_byBytes() {
+        byte[] bytesForInt = new byte[12];
+        byte[] bytesForShort = new byte[388];
 
-            for (int i = 0; i < 3; i++)
-                binaryHeaderByStringArray[i] = String.valueOf(stream.readInt());
+        System.arraycopy(sgyInBytes, 3200, bytesForInt, 0, 12);
+        System.arraycopy(sgyInBytes, 3212, bytesForShort, 0, 388);
 
-            for (int i = 0; i < 194; i++)
-                binaryHeaderByStringArray[i+3] = String.valueOf(stream.readShort());
+        for (int i = 0; i < 3; i++) {
+            byte[] b = new byte[4];
 
-            stream.close();
-        } catch (IOException e) { e.printStackTrace(); }
-        finally { if (stream != null) try { stream.close(); } catch (IOException ignored) {} }
+            System.arraycopy(bytesForInt, i*4, b, 0, 4);
+            binaryHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getInt());
+        }
+
+        for (int i = 0; i < 194; i++) {
+            byte[] b = new byte[2];
+
+            System.arraycopy(bytesForShort, i*2, b, 0, 2);
+            binaryHeaderByStringArray[i+3] = String.valueOf((ByteBuffer.wrap(b).getShort()));
+        }
 
         return binaryHeaderByStringArray;
     }
 
-    String getDescriptionByElementInBinaryHeader(int elem) {
+    String getDescriptionByElementInBinaryHeader_byBytes(int elem) {
         String[] description = new String[150];
 
         description[0] = "Job Identificator Number";                    //4byte 3201-3204
@@ -142,59 +157,111 @@ class Seismic {
         return returnString;
     }
 
+
     // returns string array
-    String[] getTraceHeader(long traceNumber) {
-        if (traceNumber > getTraces()) System.out.println("TraceNumber > allTracesInFile");
+    String[] getTraceHeader_byBytes(long traceNumber) {
+        if (traceNumber > getTraces_byBytes()) System.out.println("TraceNumber > allTracesInFile");
         else {
-            RandomAccessFile stream = null;
-            try {
-                stream = new RandomAccessFile(file_sgy, "r");
-                stream.seek(3600 + (traceNumber) * (240 + getSamplesInEveryTrace() * 4));
-                for (int k = 0; k < 7; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readInt());
 
-                for (int k = 7; k < 11; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readShort());
+            byte[] bytesPerTrace = new byte[240];
 
-                for (int k = 11; k < 19; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readInt());
+            System.arraycopy(sgyInBytes, (int) (3600 + traceNumber * (240 + getSamplesInEveryTrace_byBytes() * 4)),
+                    bytesPerTrace, 0, 240);
 
-                for (int k = 19; k < 21; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readShort());
 
-                for (int k = 21; k < 25; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readInt());
+            for (int i = 0; i < 7; i++) {
+                byte[] b = new byte[4];
 
-                for (int k = 25; k < 71; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readShort());
-
-                for (int k = 71; k < 76; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readInt());
-
-                for (int k = 76; k < 78; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readShort());
-
-                traceHeaderByStringArray[78] = String.valueOf(stream.readInt());
-
-                for (int k = 79; k < 85; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readShort());
-
-                for (int k = 85; k < 87; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readInt());
-
-                for (int k = 87; k < 93; k++)
-                    traceHeaderByStringArray[k] = String.valueOf(stream.readShort());
-
-                stream.close();
+                System.arraycopy(bytesPerTrace, i * 4, b, 0, 4);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getInt());
             }
-            catch (IOException e) { e.printStackTrace(); }
-            finally { if (stream != null) try { stream.close(); } catch (IOException ignored) {} }
+
+            for (int i = 7; i < 11; i++) {
+                byte[] b = new byte[2];
+
+                System.arraycopy(bytesPerTrace, 28 + (i - 7) * 2, b, 0, 2);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getShort());
+            }
+
+            for (int i = 11; i < 19; i++) {
+                byte[] b = new byte[4];
+
+                System.arraycopy(bytesPerTrace, 28 + 8 + (i - 11) * 4, b, 0, 4);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getInt());
+            }
+
+            for (int i = 19; i < 21; i++) {
+                byte[] b = new byte[2];
+
+                System.arraycopy(bytesPerTrace, 28 + 8 + 32 + (i - 19) * 2, b, 0, 2);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getShort());
+            }
+
+            for (int i = 21; i < 25; i++) {
+                byte[] b = new byte[4];
+
+                System.arraycopy(bytesPerTrace, 28 + 8 + 32 + 4 + (i - 21) * 4, b, 0, 4);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getInt());
+            }
+
+            for (int i = 25; i < 71; i++) {
+                byte[] b = new byte[2];
+
+                System.arraycopy(bytesPerTrace, 28 + 8 + 32 + 4 + 16 + (i - 25) * 2, b, 0, 2);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getShort());
+            }
+
+            for (int i = 71; i < 76; i++) {
+                byte[] b = new byte[4];
+
+                System.arraycopy(bytesPerTrace,
+                        28 + 8 + 32 + 4 + 16 + 92 + (i - 71) * 4, b, 0, 4);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getInt());
+            }
+
+            for (int i = 76; i < 78; i++) {
+                byte[] b = new byte[2];
+
+                System.arraycopy(bytesPerTrace,
+                        28 + 8 + 32 + 4 + 16 + 92 + 20 + (i - 76) * 2, b, 0, 2);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getShort());
+            }
+
+            byte[] tmp_b = new byte[4];
+            System.arraycopy(bytesPerTrace,
+                    28 + 8 + 32 + 4 + 16 + 92 + 20 + 2, tmp_b, 0, 4);
+            traceHeaderByStringArray[78] = String.valueOf(ByteBuffer.wrap(tmp_b).getInt());
+
+            for (int i = 79; i < 85; i++) {
+                byte[] b = new byte[2];
+
+                System.arraycopy(bytesPerTrace,
+                        28 + 8 + 32 + 4 + 16 + 92 + 20 + 2 + 4 + (i - 79) * 2, b, 0, 2);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getShort());
+            }
+
+            for (int i = 85; i < 87; i++) {
+                byte[] b = new byte[4];
+
+                System.arraycopy(bytesPerTrace,
+                        28 + 8 + 32 + 4 + 16 + 92 + 20 + 2 + 4 + 12 + (i - 85) * 4, b, 0, 4);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getInt());
+            }
+
+            for (int i = 87; i < 93; i++) {
+                byte[] b = new byte[2];
+
+                System.arraycopy(bytesPerTrace,
+                        28 + 8 + 32 + 4 + 16 + 92 + 20 + 2 + 4 + 12 + 8 + (i - 87) * 2, b, 0, 2);
+                traceHeaderByStringArray[i] = String.valueOf(ByteBuffer.wrap(b).getShort());
+            }
+
         }
         return traceHeaderByStringArray;
     }
 
     // stay as is
-    String getDescriptionByElementInTraceHeader(int elem) {
+    String getDescriptionByElementInTraceHeader_byBytes(int elem) {
         String[] description = new String[89];
 
         description[0] = "Trace sequence number within line";                       //1-4       4byte
@@ -298,31 +365,28 @@ class Seismic {
         return returnString;
     }
 
-    float[] getTraceData(long traceNumber) {
-        float[] traceDataByOneTrace = new float[(int)getSamplesInEveryTrace()];
+    float[] getTraceData_byBytes(int traceNumber) {
+        float[] traceDataByOneTrace = new float[(int)getSamplesInEveryTrace_byBytes()];
 
-        RandomAccessFile stream = null;
+        SinglePrecision s_precision = new SinglePrecision();
 
-        try {
-            stream = new RandomAccessFile(file_sgy, "r");
-            stream.seek(3600 + (traceNumber * 240) + (traceNumber - 1) * (getSamplesInEveryTrace() * 4));
+        for (int sample = 0; sample < (int)getSamplesInEveryTrace_byBytes(); sample++) {
+            byte[] b = new byte[4];
 
-            for (int sample = 0; sample < (int)getSamplesInEveryTrace(); sample++)
-                traceDataByOneTrace[sample] = new SinglePrecision().getIBM32(stream.readFloat());
+            System.arraycopy(sgyInBytes, 3600 + (traceNumber * 240) + (traceNumber - 1) *
+                    ((int)getSamplesInEveryTrace_byBytes()*4) + (sample*4), b, 0, 4);
 
-            stream.close();
+            traceDataByOneTrace[sample] = s_precision.getIBM32(ByteBuffer.wrap(b).getFloat());
         }
-        catch (IOException e) { e.printStackTrace(); }
-        finally { if (stream != null) try { stream.close(); } catch (IOException ignored) {} }
 
         return traceDataByOneTrace;
     }
 
-    float[][] getAllTraceData() {
-        float[][] out = new float[(int)getTraces()][(int)getSamplesInEveryTrace()];
-        try (ProgressBar pb = new ProgressBar("Reading SGY", getTraces(), ProgressBarStyle.ASCII)) {
-            for (int i = 0; i < getTraces(); i++) {
-                out[i] = getTraceData(i);
+    float[][] getAllTraceData_byBytes() {
+        float[][] out = new float[(int)getTraces_byBytes()][(int)getSamplesInEveryTrace_byBytes()];
+        try (ProgressBar pb = new ProgressBar("Reading SGY", getTraces_byBytes(), ProgressBarStyle.ASCII)) {
+            for (int i = 0; i < getTraces_byBytes(); i++) {
+                out[i] = getTraceData_byBytes(i);
                 pb.step();
             }
         }
@@ -330,21 +394,12 @@ class Seismic {
     }
 
     String[][] getAllTraceHeaders() {
-        String[][] new_arr = new String[(int)getTraces()][(int)getSamplesInEveryTrace()];
-        try (ProgressBar pb = new ProgressBar("Reading SGY", getTraces(), ProgressBarStyle.ASCII)) {
-            for (int i = 0; i < getTraces(); i++) {
-                new_arr[i] = getTraceHeader(i);
+        String[][] new_arr = new String[(int)getTraces_byBytes()][(int)getSamplesInEveryTrace_byBytes()];
+        try (ProgressBar pb = new ProgressBar("Reading SGY", getTraces_byBytes(), ProgressBarStyle.ASCII)) {
+            for (int i = 0; i < getTraces_byBytes(); i++) {
+                new_arr[i] = getTraceHeader_byBytes(i);
                 pb.step();
             }
-        }
-        return new_arr;
-    }
-
-    String[][] getAllXYForEveryTrace() {
-        String[][] new_arr = new String[(int)getTraces()][2];
-        for (int i = 0; i < getTraces(); i++) {
-            new_arr[i][0] = getTraceHeader(i)[21];
-            new_arr[i][1] = getTraceHeader(i)[22];
         }
         return new_arr;
     }

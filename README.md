@@ -54,7 +54,7 @@ For getting all trace headers in one array:
 seismic.getAllTraceHeaders();
 ```
 
-For getting all X and Y coordinates (if these localed in 73, 77 bytes):
+For getting all X and Y coordinates (it works if X & Y coordinated located in 73, 77 bytes only):
 
 ```java
 seismic.getAllXYForEveryTrace();
